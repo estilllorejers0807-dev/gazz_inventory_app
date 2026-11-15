@@ -69,3 +69,10 @@ desktop.ini
 *.temp
 *.swp
 *.swo
+# ==========================================
+# LOCAL DATABASE EXPORTS AND BACKUP COPIES
+# ==========================================
+database/*.sql
+database/*.sql.*
+*.mysqlclient-backup
+*.before-render
