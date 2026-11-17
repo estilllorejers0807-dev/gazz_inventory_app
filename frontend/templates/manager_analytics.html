@@ -1506,20 +1506,6 @@
                 </div>
 
 
-                <a
-                    class="analytics-primary-button"
-                    href="{{ url_for(
-                        'export_pdf',
-                        start_date=start_date,
-                        end_date=end_date
-                    ) }}"
-                    target="_blank"
-                >
-
-                    Download PDF Report
-
-                </a>
-
             </div>
 
 
@@ -1624,6 +1610,21 @@
     id="store-analytics"
     class="analytics-tab-content active"
 >
+
+<div style="margin-bottom: 20px;">
+    <a
+    class="analytics-primary-button"
+    href="{{ url_for(
+        'export_pdf',
+        report_type='store',
+        start_date=start_date,
+        end_date=end_date
+    ) }}"
+    target="_blank"
+>
+    Download Store PDF Report
+</a>
+</div>
 
     <section class="analytics-summary-grid">
 
@@ -2149,6 +2150,21 @@
     id="fuel-analytics"
     class="analytics-tab-content"
 >
+
+<div style="margin-bottom: 20px;">
+    <a
+    class="analytics-primary-button"
+    href="{{ url_for(
+        'export_pdf',
+        report_type='fuel',
+        start_date=start_date,
+        end_date=end_date
+    ) }}"
+    target="_blank"
+>
+    Download Fuel PDF Report
+</a>
+</div>
 
     <section class="analytics-summary-grid">
 

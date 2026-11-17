@@ -432,7 +432,7 @@ def inject_notifications():
 
                 p.product_name,
 
-                c.category_name,
+                'Store' AS category_name,
 
                 i.stock_quantity,
 
@@ -445,12 +445,6 @@ def inject_notifications():
             JOIN products p
 
                 ON i.product_id = p.product_id
-
-
-            JOIN categories c
-
-                ON p.category_id = c.category_id
-
 
             WHERE
 
@@ -509,579 +503,195 @@ def inject_notifications():
 # PDF EXPORT
 # =========================================================
 
-@app.route(
-    "/export-pdf"
-)
-
-
+@app.route("/export-pdf/<report_type>")
 @login_required
-def export_pdf():
+def export_pdf(report_type):
 
+    if current_user.role not in ("manager", "admin"):
+        return "Unauthorized Access", 403
 
-    # =====================================================
-    # MANAGER / ADMIN ONLY
-    # =====================================================
+    if report_type not in ("store", "fuel"):
+        return "Invalid report type", 404
 
-    if current_user.role not in (
+    start_date = request.args.get("start_date", "2026-01-01")
+    end_date = request.args.get("end_date", "2026-12-31")
 
-        "manager",
-
-        "admin"
-
-    ):
-
-
-        return (
-
-            "Unauthorized Access",
-
-            403
-
-        )
-
-
-    # =====================================================
-    # DATE FILTER
-    # =====================================================
-
-    start_date = request.args.get(
-
-        "start_date",
-
-        "2026-01-01"
-
-    )
-
-
-    end_date = request.args.get(
-
-        "end_date",
-
-        "2026-12-31"
-
-    )
-
-
-    rows = []
-
-
-    cursor = mysql.connection.cursor()
-
+    cursor = None
 
     try:
+        cursor = mysql.connection.cursor()
 
+        if report_type == "store":
+            cursor.execute("""
+                SELECT
+                    p.product_name,
+                    'Store' AS category_name,
+                    COALESCE(SUM(si.quantity), 0) AS qty,
+                    COALESCE(SUM(si.subtotal), 0) AS revenue,
+                    COALESCE(
+                        SUM(
+                            (si.unit_price - p.cost_price)
+                            * si.quantity
+                        ), 0
+                    ) AS profit
+                FROM sale_items si
+                INNER JOIN sales s
+                    ON si.sale_id = s.sale_id
+                INNER JOIN products p
+                    ON si.product_id = p.product_id
+                WHERE
+                    DATE(s.sale_date) BETWEEN %s AND %s
+                    AND s.status = 'completed'
+                    AND s.sale_type = 'store'
+                GROUP BY
+                    p.product_id,
+                    p.product_name,
+                    p.cost_price
+                ORDER BY qty DESC
+            """, (start_date, end_date))
 
-        # =================================================
-        # STORE SALES AND PROFIT REPORT
-        #
-        # Profit uses products.cost_price
-        # because sale_items does NOT have cost_price.
-        # =================================================
+            rows = cursor.fetchall()
 
-        cursor.execute(
+            title = "GAZZ POS - Store Sales & Profit Report"
+            filename = "GAZZ_Store_Report.pdf"
+            headers = ["Product", "Category", "Qty Sold", "Revenue", "Profit"]
 
-            """
+        else:
+            cursor.execute("""
+                SELECT
+                    ft.fuel_name,
+                    COALESCE(SUM(fs.liters), 0) AS liters_sold,
+                    COALESCE(SUM(fs.total_amount), 0) AS revenue,
+                    COALESCE(
+                        SUM(
+                            (fs.price_per_liter - ft.cost_per_liter)
+                            * fs.liters
+                        ), 0
+                    ) AS profit
+                FROM fuel_sales fs
+                INNER JOIN sales s
+                    ON fs.sale_id = s.sale_id
+                INNER JOIN fuel_types ft
+                    ON fs.fuel_type_id = ft.fuel_type_id
+                WHERE
+                    DATE(s.sale_date) BETWEEN %s AND %s
+                    AND s.status = 'completed'
+                    AND s.sale_type = 'fuel'
+                GROUP BY
+                    ft.fuel_type_id,
+                    ft.fuel_name,
+                    ft.cost_per_liter
+                ORDER BY liters_sold DESC
+            """, (start_date, end_date))
 
-            SELECT
+            rows = cursor.fetchall()
 
-                p.product_name,
-
-                c.category_name,
-
-
-                COALESCE(
-                    SUM(si.quantity),
-                    0
-                ) AS qty,
-
-
-                COALESCE(
-                    SUM(si.subtotal),
-                    0
-                ) AS revenue,
-
-
-                COALESCE(
-
-                    SUM(
-
-                        (
-                            si.unit_price
-                            - p.cost_price
-                        )
-
-                        * si.quantity
-
-                    ),
-
-                    0
-
-                ) AS profit
-
-
-            FROM sale_items si
-
-
-            JOIN sales s
-
-                ON si.sale_id = s.sale_id
-
-
-            JOIN products p
-
-                ON si.product_id = p.product_id
-
-
-            JOIN categories c
-
-                ON p.category_id = c.category_id
-
-
-            WHERE
-
-                DATE(s.sale_date)
-                    BETWEEN %s AND %s
-
-                AND s.status = 'completed'
-
-                AND s.sale_type = 'store'
-
-
-            GROUP BY
-
-                p.product_id,
-
-                p.product_name,
-
-                c.category_name
-
-
-            ORDER BY
-
-                qty DESC
-
-            """,
-
-            (
-
-                start_date,
-
-                end_date
-
-            )
-
-        )
-
-
-        rows = cursor.fetchall()
-
+            title = "GAZZ POS - Fuel Sales & Profit Report"
+            filename = "GAZZ_Fuel_Report.pdf"
+            headers = ["Fuel Type", "Liters Sold", "Revenue", "Profit"]
 
     except Exception as error:
-
-
-        print(
-
-            f"Error generating PDF report: {error}"
-
-        )
-
-
-        rows = []
-
+        print(f"PDF REPORT ERROR ({report_type}): {error}")
+        raise
 
     finally:
+        if cursor:
+            cursor.close()
 
-
-        cursor.close()
-
-
-    # =====================================================
-    # CREATE PDF BUFFER
-    # =====================================================
-
+    # CREATE PDF
     buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=letter)
 
+    pdf.setTitle(title)
 
-    pdf = canvas.Canvas(
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawString(40, 750, title)
 
-        buffer,
-
-        pagesize=letter
-
-    )
-
-
-    pdf.setTitle(
-
-        "GAZZ POS Sales Report"
-
-    )
-
-
-    # =====================================================
-    # TITLE
-    # =====================================================
-
-    pdf.setFont(
-
-        "Helvetica-Bold",
-
-        16
-
-    )
-
-
+    pdf.setFont("Helvetica", 10)
     pdf.drawString(
-
-        40,
-
-        750,
-
-        "GAZZ POS - Sales & Profit Report"
-
-    )
-
-
-    pdf.setFont(
-
-        "Helvetica",
-
-        10
-
-    )
-
-
-    pdf.drawString(
-
-        40,
-
-        735,
-
+        40, 735,
         f"Date Range: {start_date} to {end_date}"
-
     )
-
-
-    # =====================================================
-    # TABLE HEADER
-    # =====================================================
 
     y = 690
 
+    def draw_headers():
+        pdf.setFont("Helvetica-Bold", 10)
 
-    pdf.setFont(
+        if report_type == "store":
+            positions = [40, 200, 300, 380, 480]
+        else:
+            positions = [40, 230, 350, 470]
 
-        "Helvetica-Bold",
+        for position, header in zip(positions, headers):
+            pdf.drawString(position, y, header)
 
-        10
+        pdf.line(40, y - 5, 550, y - 5)
 
-    )
-
-
-    pdf.drawString(
-
-        40,
-
-        y,
-
-        "Product"
-
-    )
-
-
-    pdf.drawString(
-
-        200,
-
-        y,
-
-        "Category"
-
-    )
-
-
-    pdf.drawString(
-
-        300,
-
-        y,
-
-        "Qty Sold"
-
-    )
-
-
-    pdf.drawString(
-
-        380,
-
-        y,
-
-        "Revenue"
-
-    )
-
-
-    pdf.drawString(
-
-        480,
-
-        y,
-
-        "Profit"
-
-    )
-
-
-    pdf.line(
-
-        40,
-
-        y - 5,
-
-        550,
-
-        y - 5
-
-    )
-
-
-    # =====================================================
-    # TABLE CONTENT
-    # =====================================================
-
-    pdf.setFont(
-
-        "Helvetica",
-
-        10
-
-    )
-
+    draw_headers()
 
     y -= 25
-
+    pdf.setFont("Helvetica", 10)
 
     for row in rows:
 
-
-        # Supports DictCursor
-        if isinstance(
-            row,
-            dict
-        ):
-
-
-            name = row["product_name"]
-
-            category = row["category_name"]
-
-            quantity = row["qty"]
-
-            revenue = row["revenue"]
-
-            profit = row["profit"]
-
-
-        # Supports normal tuple cursor
+        if isinstance(row, dict):
+            if report_type == "store":
+                values = [
+                    row["product_name"],
+                    row["category_name"],
+                    row["qty"],
+                    row["revenue"],
+                    row["profit"]
+                ]
+            else:
+                values = [
+                    row["fuel_name"],
+                    row["liters_sold"],
+                    row["revenue"],
+                    row["profit"]
+                ]
         else:
+            values = list(row)
 
+        if report_type == "store":
+            positions = [40, 200, 300, 380, 480]
+            values = [
+                str(values[0])[:22],
+                str(values[1])[:15],
+                str(values[2]),
+                f"P{float(values[3] or 0):,.2f}",
+                f"P{float(values[4] or 0):,.2f}"
+            ]
+        else:
+            positions = [40, 230, 350, 470]
+            values = [
+                str(values[0])[:28],
+                f"{float(values[1] or 0):,.3f} L",
+                f"P{float(values[2] or 0):,.2f}",
+                f"P{float(values[3] or 0):,.2f}"
+            ]
 
-            name = row[0]
-
-            category = row[1]
-
-            quantity = row[2]
-
-            revenue = row[3]
-
-            profit = row[4]
-
-
-        pdf.drawString(
-
-            40,
-
-            y,
-
-            str(name)[:22]
-
-        )
-
-
-        pdf.drawString(
-
-            200,
-
-            y,
-
-            str(category)[:15]
-
-        )
-
-
-        pdf.drawString(
-
-            300,
-
-            y,
-
-            str(quantity)
-
-        )
-
-
-        pdf.drawString(
-
-            380,
-
-            y,
-
-            f"P{float(revenue or 0):.2f}"
-
-        )
-
-
-        pdf.drawString(
-
-            480,
-
-            y,
-
-            f"P{float(profit or 0):.2f}"
-
-        )
-
+        for position, value in zip(positions, values):
+            pdf.drawString(position, y, str(value))
 
         y -= 20
 
-
-        # =================================================
-        # NEW PAGE
-        # =================================================
-
         if y < 50:
-
-
             pdf.showPage()
-
-
             y = 750
-
-
-            # Repeat header
-
-            pdf.setFont(
-
-                "Helvetica-Bold",
-
-                10
-
-            )
-
-
-            pdf.drawString(
-
-                40,
-
-                y,
-
-                "Product"
-
-            )
-
-
-            pdf.drawString(
-
-                200,
-
-                y,
-
-                "Category"
-
-            )
-
-
-            pdf.drawString(
-
-                300,
-
-                y,
-
-                "Qty Sold"
-
-            )
-
-
-            pdf.drawString(
-
-                380,
-
-                y,
-
-                "Revenue"
-
-            )
-
-
-            pdf.drawString(
-
-                480,
-
-                y,
-
-                "Profit"
-
-            )
-
-
-            pdf.line(
-
-                40,
-
-                y - 5,
-
-                550,
-
-                y - 5
-
-            )
-
-
-            pdf.setFont(
-
-                "Helvetica",
-
-                10
-
-            )
-
-
+            draw_headers()
             y -= 25
-
-
-    # =====================================================
-    # SAVE PDF
-    # =====================================================
+            pdf.setFont("Helvetica", 10)
 
     pdf.save()
-
-
-    buffer.seek(
-        0
-    )
-
+    buffer.seek(0)
 
     return send_file(
-
         buffer,
-
         as_attachment=True,
-
-        download_name="GAZZ_POS_Report.pdf",
-
+        download_name=filename,
         mimetype="application/pdf"
-
     )
 
 
