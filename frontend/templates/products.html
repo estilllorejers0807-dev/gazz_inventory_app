@@ -436,35 +436,170 @@
     }
 
 
-    /* =========================================================
-       LEFT CONTROL RAIL
-       ========================================================= */
+/* =========================================================
+   STOCK PAGE NAVIGATION
+   Match Manager Analytics mobile navbar dimensions
+   Desktop: vertical sidebar
+   Mobile: horizontal top navbar
+   ========================================================= */
 
-    .control-rail {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        bottom: 0 !important;
+/* Desktop layout */
+.control-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
 
-        height: 100vh !important;
+    width: 88px;
+    height: 100vh;
 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    overflow: hidden;
+}
+
+.control-rail .rail-nav {
+    flex: 1;
+    min-height: 0;
+}
+
+.control-rail .logout-rail {
+    margin-top: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+/* Mobile: same dimensions as Manager Analytics */
+@media screen and (max-width: 650px) {
+
+    .app-shell {
         display: flex !important;
         flex-direction: column !important;
+        width: 100% !important;
+        min-height: 100vh !important;
+    }
 
-        overflow: hidden !important;
+    .control-rail {
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: auto !important;
+
+        width: 100% !important;
+        height: auto !important;
+        min-height: 60px !important;
+
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+
+        padding: 0 8px !important;
+        margin: 0 !important;
+
+        background: var(--black) !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+
+        z-index: 99999 !important;
+    }
+
+    /* Same 48px logo as Manager Analytics */
+    .rail-logo {
+        flex: 0 0 48px !important;
+        width: 48px !important;
+        height: 48px !important;
+        margin: 0 8px 0 0 !important;
+        font-size: 25px !important;
     }
 
     .control-rail .rail-nav {
-        flex: 1 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+
+        flex: 1 1 auto !important;
+        width: auto !important;
+        height: 60px !important;
         min-height: 0 !important;
+
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 3px !important;
+
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
     }
 
+    /* Same 48px navigation height */
+    .control-rail .rail-link {
+        display: flex !important;
+        flex: 0 0 auto !important;
+
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+
+        width: auto !important;
+        min-width: 45px !important;
+        min-height: 48px !important;
+        height: 48px !important;
+
+        padding: 5px 9px !important;
+        margin: 0 !important;
+        gap: 3px !important;
+
+        border-left: none !important;
+        border-bottom: 3px solid transparent !important;
+    }
+
+    .control-rail .rail-link.active,
+    .control-rail .rail-link:hover {
+        border-left: none !important;
+        border-bottom-color: var(--red) !important;
+        background: #292929 !important;
+    }
+
+    .control-rail .rail-link svg {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    .control-rail .rail-link small {
+        display: block !important;
+        font-size: 8px !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    /* Logout stays on the right */
     .control-rail .logout-rail {
-        margin-top: auto !important;
-        margin-bottom: 0 !important;
+        display: flex !important;
+        flex: 0 0 auto !important;
 
-        flex-shrink: 0 !important;
+        width: auto !important;
+        min-height: 48px !important;
+        height: 48px !important;
+
+        margin: 0 0 0 5px !important;
+        padding: 5px 9px !important;
+
+        border-top: none !important;
+        border-left: none !important;
+        border-bottom: 3px solid transparent !important;
     }
+
+    .workspace {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+}
+
+
 
 </style>
 

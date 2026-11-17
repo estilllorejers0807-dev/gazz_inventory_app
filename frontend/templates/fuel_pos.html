@@ -63,6 +63,77 @@
             width: 100%;
             box-sizing: border-box;
         }
+
+
+/* Fuel cashier responsive adjustments */
+
+@media (max-width: 650px) {
+
+    .system-dialog-overlay {
+        padding: 12px !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .system-dialog {
+        width: 100% !important;
+        max-width: 360px !important;
+        max-height: 85vh;
+        overflow-y: auto;
+        border-radius: 11px;
+    }
+
+    .system-dialog-header {
+        padding: 12px 15px;
+    }
+
+    .system-dialog-body {
+        padding: 17px 15px;
+    }
+
+    .system-dialog-title {
+        font-size: 16px;
+    }
+
+    .system-dialog-message {
+        font-size: 12px;
+    }
+
+    .system-dialog-actions {
+        padding: 12px 15px 15px;
+        gap: 8px;
+    }
+
+    .system-dialog-button {
+        min-width: 0;
+        height: 39px;
+        font-size: 12px;
+    }
+
+    .pos-layout {
+        display: block !important;
+        width: 100%;
+    }
+
+    .pos-form-panel,
+    .pos-info-panel {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .pos-form {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .sale-total-box {
+        width: 100%;
+    }
+
+    .pos-button {
+        width: 100%;
+    }
+}
+
     </style>
 </head>
 
@@ -98,7 +169,10 @@
             {% if current_user.role in ['fuel_cashier', 'attendant', 'manager', 'admin'] %}
 
             <a class="rail-link active" href="{{ url_for('sales.fuel_pos') }}">
-                <span>⛽</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M7 8h10M7 12h2m3 0h2m3 0h0M7 16h2m3 0h2m3 0h0" />
+        </svg>
                 <small>Fuel POS</small>
             </a>
 
